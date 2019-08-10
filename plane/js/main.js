@@ -139,43 +139,16 @@ game.myStates.play = {
         game.physics.arcade.enable(this.enemy);
     },
     update: function() {
-        // 或者 game.time.now
-        var now = new Date().getTime();
-        if (this.myplane.myStartFire && (now - this.myplane.lastBulletTime) > 500) {
-            // // 相当于new了一个bullet
-            // var myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
-            // // game.physics.arcade.enable(sprite);写法一样
-            // game.physics.enable(myBullet, Phaser.Physics.ARCADE);
-            // // 开启物理引擎后就有body属性
-            // myBullet.body.velocity.y = -200;
-            // this.myplane.lastBulletTime = now;
-
-            // // 将子弹加到组里面去
-            // this.myBullets.add(myBullet);
-
-            /**
-             * 对象池的写法
-             */
-            // 参数1:false表示拿不在游戏界面的子弹(If true, find the first existing child; otherwise find the first non-existing child.)
-            var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
-            if (myBullet) {
-                game.physics.enable(myBullet, Phaser.Physics.ARCADE);
-                // // 设置子弹位置(可以将这一步骤放到getFirstExists函数)
-                // myBullet.reset(this.myplane.x + 15, this.myplane.y - 7);
-                // 开启物理引擎后就有body属性
-                myBullet.body.velocity.y = -200;
-                this.myplane.lastBulletTime = now;
-            } else {
-                console.log('不存在子弹了');
-            }
+        if (this.myplane.myStartFire) {
+            this.myPlaneFire();
         }
 
         // 我方子弹和敌机碰撞检测
         // collide用这个函数会将物理往上弹
         game.physics.arcade.overlap(this.myBullets, this.enemy, this.collisionHandler, null, this);
 
-        // 打印子弹数
-        console.log(this.myBullets ? this.myBullets.length : 0);
+        // // 打印子弹数
+        // console.log(this.myBullets ? this.myBullets.length : 0);
     },
     collisionHandler: function(enemy, bullet) {
         // console.log(arguments);
@@ -201,20 +174,78 @@ game.myStates.play = {
          */
         // 创建一个子弹的组
         this.myBullets = game.add.group();
-        // 开启物理引擎
-        this.myBullets.enableBody = true;
-        // // 测试添加很多子弹
-        // this.myBullets.createMultiple(50000, 'mybullet');
-        // 创建一个子弹的对象池
-        this.myBullets.createMultiple(5, 'mybullet');
-        // 检测边界碰撞
-        this.myBullets.setAll('checkWorldBounds', true);
-        // 飞出边界kill掉变为non-existing child.
-        this.myBullets.setAll('outOfBoundsKill', true);
+        // // 开启物理引擎
+        // this.myBullets.enableBody = true;
+        // // // 测试添加很多子弹
+        // // this.myBullets.createMultiple(50000, 'mybullet');
+        // // 创建一个子弹的对象池
+        // this.myBullets.createMultiple(5, 'mybullet');
+        // // 检测边界碰撞
+        // this.myBullets.setAll('checkWorldBounds', true);
+        // // 飞出边界kill掉变为non-existing child.
+        // this.myBullets.setAll('outOfBoundsKill', true);
 
         // 显示分数
         var style = { font: "16px Arial", fill: "#ff0000" };
         var text = game.add.text(0, 0, "Score: 0", style);
+    },
+    myPlaneFire: function() {
+        // 或者 game.time.now
+        var now = new Date().getTime();
+        if ((now - this.myplane.lastBulletTime) > 200) {
+            // // 相当于new了一个bullet
+            // var myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
+            // // game.physics.arcade.enable(sprite);写法一样
+            // game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+            // // 开启物理引擎后就有body属性
+            // myBullet.body.velocity.y = -200;
+            // this.myplane.lastBulletTime = now;
+
+            // // 将子弹加到组里面去
+            // this.myBullets.add(myBullet);
+
+            // /**
+            //  * 对象池的写法
+            //  */
+            // // 参数1:false表示拿不在游戏界面的子弹(If true, find the first existing child; otherwise find the first non-existing child.)
+            // var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
+            // if (myBullet) {
+            //     game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+            //     // // 设置子弹位置(可以将这一步骤放到getFirstExists函数)
+            //     // myBullet.reset(this.myplane.x + 15, this.myplane.y - 7);
+            //     // 开启物理引擎后就有body属性
+            //     myBullet.body.velocity.y = -200;
+            //     this.myplane.lastBulletTime = now;
+            // } else {
+            //     console.log('不存在子弹了');
+            // }
+
+            /**
+             * 对象池的写法, 不估算对象池需要多少子弹(时间间隔随便改都不需要预先设置对象池的大小)
+             */
+            // 从group中获取一个对象
+            var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
+            // 如果获取到子弹
+            if (myBullet) {
+                // // 设置子弹位置(可以将这一步骤放到getFirstExists函数)
+                // myBullet.reset(this.myplane.x + 15, this.myplane.y - 7);
+            } else {
+                // 如果获取不到子弹则创建一个
+                myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
+                // 检测边界碰撞
+                myBullet.checkWorldBounds = true;
+                // 飞出边界kill掉变为non-existing child.
+                myBullet.outOfBoundsKill = true;
+
+                // 把子弹加入到子弹组里面
+                this.myBullets.addChild(myBullet);
+
+                // 开启物理引擎(这句话要是放上面, 子弹和敌机碰撞不会kill)
+                game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+            }
+            myBullet.body.velocity.y = -200;
+            this.myplane.lastBulletTime = now;
+        }
     }
 }
 
