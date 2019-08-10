@@ -2,6 +2,8 @@ var game = new Phaser.Game(240, 400, Phaser.CANVAS, 'game');
 
 var upKey;
 
+var score = 0;
+
 game.myStates = {};
 
 // 进度条场景, 一般是对游戏进行一些设置
@@ -149,10 +151,29 @@ game.myStates.play = {
             // 我方子弹和敌机碰撞检测
             // collide用这个函数会将物理往上弹
             game.physics.arcade.overlap(this.myBullets, this.enemys, this.hitEnemy, null, this);
+
+            // 敌方子弹与我方飞机碰撞
+            game.physics.arcade.overlap(this.enemyBullets, this.myplane, this.hitPlane, null, this);
         }
 
         // // 打印子弹数
         // console.log(this.myBullets ? this.myBullets.length : 0);
+    },
+    hitPlane: function(myplan, bullet) {
+        myplan.kill();
+        bullet.kill();
+
+        // 爆炸效果(可以考虑使用对象池)
+        var explode = game.add.sprite(myplan.x, myplan.y, 'myexplode');
+        var anim = explode.animations.add('explode');
+        anim.play(30, false, false);
+
+        // 把explode destory掉
+        anim.onComplete.addOnce(function() {
+            explode.destroy();
+            // 调到结束界面
+            game.state.start('over');
+        });
     },
     hitEnemy: function(bullet, enemy) {
         enemy.life -= 1;
@@ -225,7 +246,8 @@ game.myStates.play = {
     myPlaneFire: function() {
         // 或者 game.time.now
         var now = new Date().getTime();
-        if ((now - this.myplane.lastBulletTime) > 200) {
+        // this.myplane.alive 还存活, 避免我方飞机没了还发射子弹
+        if (this.myplane.alive && (now - this.myplane.lastBulletTime) > 200) {
             // // 相当于new了一个bullet
             // var myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
             // // game.physics.arcade.enable(sprite);写法一样
@@ -357,9 +379,50 @@ game.myStates.play = {
     }
 }
 
+// 游戏结束场景
+game.myStates.over = {
+    create: function() {
+        // 显示背景, 也可以使用image, game.add.image
+        game.add.sprite(0, 0, 'background');
+        // 显示底部版权信息, (240 - 216) /2
+        game.add.image(12, game.height - 16, 'copyright');
+
+        /**
+         * 会动的飞机
+         */
+        var myplane = game.add.sprite(100, 100, 'myplane');
+        // 添加逐帧动画, 名字随便取
+        myplane.animations.add('fly');
+        // 参数1:名字, 参数2:频率, 参数3:是否循环
+        myplane.animations.play('fly', 10, true);
+
+        /**
+         * 居中文本
+         */
+        var style = { font: "bold 32px Arial", fill: "#ff0000", boundsAlignH: "center", boundsAlignV: "middle" };
+        text = game.add.text(0, 0, "Score:" + score, style);
+        text.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
+        // x:0 y:100 width:800 height:100
+        text.setTextBounds(0, 0, game.width, game.height);
+
+        /**
+         * 分享和重来按钮
+         */
+        game.add.button(30, 300, 'replaybutton', this.onRePlayClick, this, 0, 0, 1);
+        game.add.button(130, 300, 'sharebutton', this.onShareClick, this, 0, 0, 1);
+    },
+    onRePlayClick: function() {
+        game.state.start('play');
+    },
+    onShareClick: function() {
+
+    }
+};
+
 // 将场景添加到游戏里面
 game.state.add('boot', game.myStates.boot);
 game.state.add('load', game.myStates.load);
 game.state.add('start', game.myStates.start);
 game.state.add('play', game.myStates.play);
+game.state.add('over', game.myStates.over);
 game.state.start('boot');
