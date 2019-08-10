@@ -282,9 +282,19 @@ game.myStates.play = {
             game.physics.arcade.enable(enemy);
             // 飞机往下飞
             enemy.body.velocity.y = 200;
+            // 因为飞机的大小不一样, body还是用之前的所有有问题
+            enemy.body.setSize(width, width);
 
             this.enemys.lastEnemyTime = now;
         }
+    },
+    render: function() {
+        // // render基本拿来调试用
+        // if (this.enemys) {
+        //     this.enemys.forEachAlive(function(enemy) {
+        //         game.debug.body(enemy);
+        //     });
+        // }
     }
 }
 
