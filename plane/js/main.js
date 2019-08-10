@@ -131,21 +131,22 @@ game.myStates.play = {
         // 到达底部回调
         tween.onComplete.add(this.onStart, this);
 
-        /**
-         * todo 加一个敌机
-         */
-        this.enemy = game.add.sprite(100, 10, 'enemy1');
-        // 物理属性打开
-        game.physics.arcade.enable(this.enemy);
+        // /**
+        //  * todo 加一个敌机
+        //  */
+        // this.enemy = game.add.sprite(100, 10, 'enemy1');
+        // // 物理属性打开
+        // game.physics.arcade.enable(this.enemy);
     },
     update: function() {
         if (this.myplane.myStartFire) {
             this.myPlaneFire();
+            // 敌机产生
+            this.generateEnemy();
+            // 我方子弹和敌机碰撞检测
+            // collide用这个函数会将物理往上弹
+            game.physics.arcade.overlap(this.myBullets, this.enemys, this.collisionHandler, null, this);
         }
-
-        // 我方子弹和敌机碰撞检测
-        // collide用这个函数会将物理往上弹
-        game.physics.arcade.overlap(this.myBullets, this.enemy, this.collisionHandler, null, this);
 
         // // 打印子弹数
         // console.log(this.myBullets ? this.myBullets.length : 0);
@@ -188,6 +189,17 @@ game.myStates.play = {
         // 显示分数
         var style = { font: "16px Arial", fill: "#ff0000" };
         var text = game.add.text(0, 0, "Score: 0", style);
+
+        /**
+         * 敌方飞机组
+         */
+        this.enemys = game.add.group();
+        this.enemys.lastEnemyTime = 0;
+
+        /**
+         * 敌方子弹组
+         */
+        this.enemyBullets = game.add.group();
     },
     myPlaneFire: function() {
         // 或者 game.time.now
@@ -223,7 +235,7 @@ game.myStates.play = {
             /**
              * 对象池的写法, 不估算对象池需要多少子弹(时间间隔随便改都不需要预先设置对象池的大小)
              */
-            // 从group中获取一个对象
+            // 从group中获取一个对象(参数2为true表示没有则创建)
             var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
             // 如果获取到子弹
             if (myBullet) {
@@ -232,9 +244,9 @@ game.myStates.play = {
             } else {
                 // 如果获取不到子弹则创建一个
                 myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
-                // 检测边界碰撞
+                // 检测边界碰撞(让子弹可以回收)
                 myBullet.checkWorldBounds = true;
-                // 飞出边界kill掉变为non-existing child.
+                // 飞出边界kill掉变为non-existing child.(让子弹可以回收)
                 myBullet.outOfBoundsKill = true;
 
                 // 把子弹加入到子弹组里面
@@ -245,6 +257,33 @@ game.myStates.play = {
             }
             myBullet.body.velocity.y = -200;
             this.myplane.lastBulletTime = now;
+        }
+    },
+    generateEnemy: function() {
+        var now = game.time.now;
+        if (now - this.enemys.lastEnemyTime > 1000) {
+            // 取一个随机数
+            var enemyIndex = game.rnd.integerInRange(1, 3);
+            var key = 'enemy' + enemyIndex;
+            // 获得图片尺寸
+            var width = game.cache.getImage(key).width;
+            var x = game.rnd.integerInRange(width / 2, game.width - width / 2);
+            var y = 0;
+            console.log(key, width, x, y);
+            // 参数2为true表示没有则创建
+            var enemy = this.enemys.getFirstExists(false, true, x, y, key);
+            // 锚点(设置按钮的中心点)
+            enemy.anchor.setTo(0.5, 0.5);
+            // 检测边界碰撞(让敌机可以回收)
+            enemy.checkWorldBounds = true;
+            // 飞出边界kill掉变为non-existing child.(让敌机可以回收)
+            enemy.outOfBoundsKill = true;
+            // 开启物理引擎
+            game.physics.arcade.enable(enemy);
+            // 飞机往下飞
+            enemy.body.velocity.y = 200;
+
+            this.enemys.lastEnemyTime = now;
         }
     }
 }
