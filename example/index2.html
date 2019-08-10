@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>自己重新制作-吃星星</title>
+    <script type="text/javascript" src="phaser.min.js"></script>
+</head>
+
+<body>
+    <script type="text/javascript">
+    var game = new Phaser.Game(800, 600, Phaser.AUTO, '', {
+        preload: preload,
+        create: create,
+        update: update
+    });
+
+    function preload() {
+        // console.log('preload');
+        game.load.image('sky', 'assets/sky.png');
+        game.load.image('star', 'assets/star.png');
+        game.load.image('ground', 'assets/platform.png');
+        // game.load.image('dude', 'assets/dude.png');
+        game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
+    }
+
+    var platforms;
+    var player;
+    var stars;
+    var cursors;
+    var score = 0;
+    var scoreText;
+
+    function create() {
+        // 开启游戏中的物理引擎
+        game.physics.startSystem(Phaser.Physics.ARCADE);
+
+        // 天空
+        game.add.sprite(0, 0, 'sky');
+
+        // 大地组
+        platforms = game.add.group();
+        platforms.enableBody = true;
+        var ground = platforms.create(0, game.world.height - 64, 'ground');
+        ground.scale.setTo(2, 2);
+        // 将大地的物理引擎也开启
+        game.physics.arcade.enable(ground);
+        // 为了让小人不把大地压下去(immovable:不能移动)(只有enable了物理引擎才有body属性)
+        ground.body.immovable = true;
+        var l1 = platforms.create(-150, 250, 'ground');
+        l1.body.immovable = true;
+        var l2 = platforms.create(400, 400, 'ground');
+        l2.body.immovable = true;
+
+        player = game.add.sprite(32, game.world.height - 150, 'dude');
+        // 开启小人的物理引擎(只有enable才有body属性)
+        game.physics.arcade.enable(player);
+        // 开启重力(gravity:重力), y方向的重力(代表往这个方向多快的速度掉落)
+        player.body.gravity.y = 300;
+        // 弹性系数
+        player.body.bounce.y = 0.2;
+        // 不想让小人掉出去, (collide:碰撞)(bounds:限制范围)[设置了它会与边界进行碰撞，这就是为什么小人落下的时候，到游戏区域边界就不会掉下去]
+        player.body.collideWorldBounds = true;
+        // 让小人有动画效果, 参数1:名字, 参数2:帧, 参数3:多少毫秒播放一帧, 参数4:是否循环
+        player.animations.add('left', [0, 1, 2, 3], 10, true);
+        player.animations.add('right', [5, 6, 7, 8], 10, true);
+
+        cursors = game.input.keyboard.createCursorKeys();
+
+        // 创建星星组
+        stars = game.add.group();
+        // 开启物理引擎
+        stars.enableBody = true;
+        for (var i = 0; i < 12; i++) {
+            // 渲染星星
+            var star = stars.create(i * 70, 0, 'star');
+            // 开启重力(gravity:重力), y方向的重力(代表往这个方向多快的速度掉落)
+            star.body.gravity.y = 300;
+            // 弹性系数, 弹起来的效果
+            star.body.bounce.y = 0.7 + Math.random() * 0.2;
+        }
+
+        // 分数文本初始化, 参数1:x轴, 参数2:y轴, 参数3:文案, 参数4:样式
+        scoreText = game.add.text(14, 14, 'score:0', {
+            fontSize: '30px',
+            fill: '#ff0000'
+        });
+    }
+
+    function update() {
+        // console.log('update');
+        game.physics.arcade.collide(player, platforms);
+        game.physics.arcade.collide(stars, platforms);
+
+        if (cursors.left.isDown) {
+            player.body.velocity.x = -150;
+            player.animations.play('left');
+        } else if (cursors.right.isDown) {
+            player.body.velocity.x = 150;
+            player.animations.play('right');
+        } else {
+            player.body.velocity.x = 0;
+            player.animations.frame = 4;
+            // // 直接停在某一帧
+            // player.frame = 4;
+        }
+
+        if (cursors.up.isDown && player.body.touching.down) {
+            // 小人向上的速度
+            player.body.velocity.y = -350;
+        }
+
+        // 碰撞检测, 消除星星
+        game.physics.arcade.overlap(player, stars, collectStar, null, this);
+    }
+
+    function collectStar(player, star) {
+        star.kill();
+        score += 10;
+        scoreText.text = 'score:' + score;
+    }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>自己模仿的-吃星星</title>
+    <style type="text/css" media="screen">
+    body {
+        margin: 0px;
+        padding: 0px;
+    }
+    </style>
+    <script type="text/javascript" src="phaser.min.js"></script>
+</head>
+
+<body>
+    <script type="text/javascript">
+    // 参数1:宽度, 参数2:高度, 参数3:渲染类型canvas还是webgl, 参数4:如果需要赋给dom的话, 参数5:定义函数
+    var game = new Phaser.Game(800, 600, Phaser.AUTO, '', {
+        preload: preload,
+        create: create,
+        update: update
+    });
+
+    // 加载资源
+    function preload() {
+        // console.log('preload');
+        // 添加一个图片, 参数1:自己取的名字, 参数2:图片资源
+        // 天空
+        game.load.image('sky', 'assets/sky.png');
+        // 大地
+        game.load.image('ground', 'assets/platform.png');
+        // 星星
+        game.load.image('star', 'assets/star.png');
+        // 在加载队列中添加一个精灵序列文件。
+        // 调用这个方法之后，如果传递URL，文件不会马上加载，只是放到了加载队列。key必须唯一。
+        // 专业术语解释：spritesheet是一个图片，通常包含一个动画的所有帧，这些帧有着相同的尺寸，按照顺序排列着。比如帧大小是32x32，那么在spritesheet中的每一帧，都是32x32。在Phaser之外的其他引擎里，spritesheet可能指的是atlas纹理。altas纹理就是把图片打包在一起，不管是什么尺寸的图片都可以。Texture Packer、Flash CC或者Shoebox都可以生成atlas纹理。如果你想加载atlas纹理，用Loader.atlas。
+        // 可以通过Cache.getImage(key)来获取文件。精灵序列文件和其他图片一样。
+        // URL可以是相对路径，也可以是绝对路径。如果是相对路径，Loader.baseURL和Loader.path会加在它前面。
+        // 如果没有指定url，加载器会根据key生成一个文件名。例如key是alien，没指定URL，加载器会把URL设置为alien.png。如果你不想这样，就提供url。
+        // 参数3:宽, 参数4:高
+        game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
+    }
+
+    // 写成组的写法就不需要这个了
+    // // 大地
+    // var ground;
+    // 小人
+    var player;
+    // 按键
+    var cursors;
+
+    // 组, 因为小人和大地一个个去设置碰撞检测麻烦, 所以把所有的大地都放在一个组里
+    var platforms;
+
+    // 星星也搞成一个组
+    var stars;
+
+    // 分数
+    var score = 0;
+    // 分数文本
+    var scoreText;
+
+    // 进行一些对象的创建及初始化
+    function create() {
+        // console.log('create');
+
+        // 开启(游戏中的物理引擎, 不是小人等这些元素的物理引擎)物理引擎(内置了三种), 为了让小人不在空中飞着
+        game.physics.startSystem(Phaser.Physics.ARCADE);
+
+        // sprite:精灵, 参数1:x轴, 参数2:y轴, 参数3:资源的名字
+        // game.add.sprite(0, 0, 'star');
+        // 天空
+        game.add.sprite(0, 0, 'sky');
+
+        /**
+         * 不写成组的写法
+         */
+        // // 大地左侧
+        // game.add.sprite(-150, 250, 'ground');
+        // // 大地右侧
+        // game.add.sprite(400, 400, 'ground');
+        // // 大地底部
+        // // sprite:精灵, 参数1:x轴, 参数2:y轴(游戏高度:game.world.height), 参数3:资源的名字
+        // ground = game.add.sprite(0, game.world.height - 64, 'ground'); // 用组的写法改为:platforms.create
+        // // 放大缩小规模, 参数1:调整x轴, 参数2:调整y轴
+        // ground.scale.setTo(2, 2);
+        // // 将大地的物理引擎也开启
+        // game.physics.arcade.enable(ground);
+        // // 为了让小人不把大地压下去(immovable:不能移动)(只有enable了物理引擎才有body属性)
+        // ground.body.immovable = true;
+
+        /**
+         * 写成组的写法
+         * 其中，大地和两个平板都被加到了platforms这个组中，这个组我们为它启动了物理属性，然后我们设置了大地和两个平板是不能动的，这样他们就不会由于撞击被改变位置。
+         */
+        // 创建一个组
+        platforms = game.add.group();
+        // 开启整个组的物理引擎
+        platforms.enableBody = true;
+        // 大地左侧
+        var ledge1 = platforms.create(-150, 250, 'ground');
+        // 为了不让人把大地网上顶, 设置大地不可移动
+        ledge1.body.immovable = true;
+        // 大地右侧
+        var ledge2 = platforms.create(400, 400, 'ground');
+        // 为了不让人把大地网上顶, 设置大地不可移动
+        ledge2.body.immovable = true;
+        // 大地底部
+        // 参数1:x轴, 参数2:y轴(游戏高度:game.world.height), 参数3:资源的名字
+        var ground = platforms.create(0, game.world.height - 64, 'ground');
+        // 放大缩小规模, 参数1:调整x轴, 参数2:调整y轴
+        ground.scale.setTo(2, 2);
+        // 将大地的物理引擎也开启
+        game.physics.arcade.enable(ground);
+        // 为了让小人不把大地压下去(immovable:不能移动)(只有enable了物理引擎才有body属性)
+        ground.body.immovable = true;
+
+        // 小人
+        player = game.add.sprite(32, game.world.height - 150, 'dude');
+        // 开启小人的物理引擎(只有enable才有body属性)
+        game.physics.arcade.enable(player);
+        // 开启重力(gravity:重力), y方向的重力(代表往这个方向多快的速度掉落)
+        player.body.gravity.y = 300;
+        // 弹性系数
+        player.body.bounce.y = 0.2;
+        // 不想让小人掉出去, (collide:碰撞)(bounds:限制范围)[设置了它会与边界进行碰撞，这就是为什么小人落下的时候，到游戏区域边界就不会掉下去]
+        player.body.collideWorldBounds = true;
+
+        // 按键(获取系统的键盘输入对象)
+        cursors = game.input.keyboard.createCursorKeys();
+
+        // 让小人有动画效果, 参数1:名字, 参数2:帧, 参数3:多少毫秒播放一帧, 参数4:是否循环
+        player.animations.add('left', [0, 1, 2, 3], 10, true);
+        player.animations.add('right', [5, 6, 7, 8], 10, true);
+
+        // 创建星星组
+        stars = game.add.group();
+        // 开启物理引擎
+        stars.enableBody = true;
+        for (var i = 0; i < 12; i++) {
+            // 渲染星星
+            var star = stars.create(i * 70, 0, 'star');
+            // 开启重力(gravity:重力), y方向的重力(代表往这个方向多快的速度掉落)
+            star.body.gravity.y = 300;
+            // 弹性系数, 弹起来的效果
+            star.body.bounce.y = 0.7 + Math.random() * 0.2;
+        }
+
+        // 分数文本初始化, 参数1:x轴, 参数2:y轴, 参数3:文案, 参数4:样式
+        scoreText = game.add.text(14, 14, 'score:0', {
+            fontSize: '30px',
+            fill: '#ff0000'
+        });
+    }
+
+    // 游戏的主循环
+    function update() {
+        // console.log('update');
+        // // 为了让小人站在地面上(否则站在地面下面), 需要使用碰撞检测(需要将大地也开启物理引擎)
+        // game.physics.arcade.collide(player, ground);
+
+        /**
+         * 写成组的写法
+         * 整个大地组和人碰撞检测
+         */
+        game.physics.arcade.collide(player, platforms);
+
+        // 为了让星星不一致往小掉, 开启碰撞检测
+        game.physics.arcade.collide(stars, platforms);
+
+        // 键盘向左, 向右
+        if (cursors.left.isDown) {
+            // 小人向左的速度
+            player.body.velocity.x = -150;
+            // 播放动画
+            player.animations.play('left');
+        } else if (cursors.right.isDown) {
+            player.body.velocity.x = 150;
+            // 播放动画
+            player.animations.play('right');
+        } else {
+            player.body.velocity.x = 0;
+            // 直接停在某一帧
+            player.frame = 4;
+        }
+
+        // // 向上
+        // if (cursors.up.isDown) {
+        //     // 小人向上的速度
+        //     player.body.velocity.y = -350;
+        // }
+
+        /**
+         * 不能连续向上跳, 只能在地面才可以跳(人在空中的时候，不允许跳跃)
+         */
+        if (cursors.up.isDown && player.body.touching.down) {
+            // 小人向上的速度
+            player.body.velocity.y = -350;
+        }
+
+        // 收集星星
+        // 为了让星星和人有碰撞
+        // game.physics.arcade.collide(player, stars);
+        // 上面这个函数不是我们想要的, 我们想可以在碰撞的时候回调一个函数
+        game.physics.arcade.overlap(player, stars, collectStar, null, this);
+    }
+
+    /**
+     * [collectStar 收集星星]
+     * @param  {[type]} player [description]
+     * @param  {[type]} star  [description]
+     * @return {[type]}        [description]
+     */
+    function collectStar(player, star) {
+        // 让星星消失
+        star.kill();
+        // 添加分数
+        score += 10;
+        // 修改文案
+        scoreText.text = 'score:' + score;
+    }
+    </script>
+</body>
+
+</html>

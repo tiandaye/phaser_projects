@@ -1,0 +1,50 @@
+<!DOCTYPE html> 
+<head>
+	<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+	<title>test plugin</title>
+  <script src="phaser.min.js"></script>
+  <script src="plugin.js"></script>
+</head>
+<body>
+  <div id="game" class="game"></div>
+  <script>
+    var game = new Phaser.Game(100, 100, Phaser.CANVAS, 'game');
+    
+    var stateBoot = {
+      preload: function() {
+        game.load.image('apple', 'apple.png');
+        game.load.image('basaha', 'basaha.png');
+      },
+      create: function() {
+        game.fadePlugin = game.plugins.add(Phaser.Plugin.FadePlugin);
+        game.state.start('one');
+      }
+    }
+    
+    var stateOne = {
+      create: function() {
+        game.add.sprite(10, 10, 'apple');
+        game.input.onTap.add(function() {
+          game.fadePlugin.fadeAndPlay("#000", 1, "two");
+        });
+      }
+    }
+    
+    var stateTwo = {
+      create: function() {
+        game.add.sprite(10, 10, 'basaha');
+        game.input.onTap.add(function() {
+          game.fadePlugin.fadeAndPlay("#000", 1, "one");
+        });
+      }
+    }
+    
+    game.state.add('boot', stateBoot);
+    game.state.add('one', stateOne);
+    game.state.add('two', stateTwo);
+    
+    game.state.start('boot');
+
+  </script>
+</body>
