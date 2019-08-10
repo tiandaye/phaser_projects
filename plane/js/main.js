@@ -140,18 +140,39 @@ game.myStates.play = {
     },
     update: function() {
         if (this.myplane.myStartFire) {
+            // 我机发射子弹
             this.myPlaneFire();
             // 敌机产生
             this.generateEnemy();
+            // 敌机发射子弹
+            this.enemyFire();
             // 我方子弹和敌机碰撞检测
             // collide用这个函数会将物理往上弹
-            game.physics.arcade.overlap(this.myBullets, this.enemys, this.collisionHandler, null, this);
+            game.physics.arcade.overlap(this.myBullets, this.enemys, this.hitEnemy, null, this);
         }
 
         // // 打印子弹数
         // console.log(this.myBullets ? this.myBullets.length : 0);
     },
-    collisionHandler: function(enemy, bullet) {
+    hitEnemy: function(bullet, enemy) {
+        enemy.life -= 1;
+        if (enemy.life <= 0) {
+            enemy.kill();
+
+            // 爆炸效果(可以考虑使用对象池)
+            var explode = game.add.sprite(enemy.x, enemy.y, 'explode' + enemy.index);
+            explode.anchor.setTo(0.5, 0.5);
+            var anim = explode.animations.add('explode');
+            anim.play(30, false, false);
+
+            // 把explode destory掉
+            anim.onComplete.addOnce(function() {
+                explode.destroy();
+            });
+        }
+        bullet.kill();
+    },
+    collisionHandler: function(bullet, enemy) {
         // console.log(arguments);
         // console.log('collisionHandler');
         enemy.kill();
@@ -272,6 +293,26 @@ game.myStates.play = {
             console.log(key, width, x, y);
             // 参数2为true表示没有则创建
             var enemy = this.enemys.getFirstExists(false, true, x, y, key);
+            // 设置自定义属性
+            enemy.lastFireTime = 0; // 子弹最后发射的时间
+            enemy.width = width; // 飞机的宽度
+            enemy.index = enemyIndex; // 爆炸的图片根据这个来
+
+            // 让子弹的速度不一样
+            if (enemyIndex == 1) {
+                enemy.bulletV = 40;
+                enemy.bulletTime = 4000;
+                enemy.life = 2;
+            } else if (enemyIndex == 2) {
+                enemy.bulletV = 80;
+                enemy.bulletTime = 2000;
+                enemy.life = 3;
+            } else {
+                enemy.bulletV = 120;
+                enemy.bulletTime = 1000;
+                enemy.life = 5;
+            }
+
             // 锚点(设置按钮的中心点)
             enemy.anchor.setTo(0.5, 0.5);
             // 检测边界碰撞(让敌机可以回收)
@@ -281,12 +322,30 @@ game.myStates.play = {
             // 开启物理引擎
             game.physics.arcade.enable(enemy);
             // 飞机往下飞
-            enemy.body.velocity.y = 200;
+            enemy.body.velocity.y = 20;
             // 因为飞机的大小不一样, body还是用之前的所有有问题
             enemy.body.setSize(width, width);
 
             this.enemys.lastEnemyTime = now;
         }
+    },
+    enemyFire: function() {
+        var now = game.time.now;
+        this.enemys.forEachAlive(function(enemy) {
+            if (now - enemy.lastFireTime > enemy.bulletTime) {
+                // 敌机发射子弹
+                var bullet = this.enemyBullets.getFirstExists(false, true, enemy.x, enemy.y + enemy.width / 2, 'bullet');
+                bullet.anchor.setTo(0.5, 0.5);
+                bullet.outOfBoundsKill = true;
+                bullet.checkWorldBounds = true;
+                game.physics.arcade.enable(bullet);
+                bullet.body.velocity.y = enemy.bulletV;
+
+                // 飞机最后发射子弹的时间
+                enemy.lastFireTime = now;
+            }
+        }, this);
+        console.log('敌机子弹:' + this.enemyBullets.length);
     },
     render: function() {
         // // render基本拿来调试用
