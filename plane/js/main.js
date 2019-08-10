@@ -141,22 +141,41 @@ game.myStates.play = {
     update: function() {
         // 或者 game.time.now
         var now = new Date().getTime();
-        if (this.myplane.myStartFire && (now - this.myplane.lastBulletTime)> 500) {
-            // 相当于new了一个bullet
-            var myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
-            // game.physics.arcade.enable(sprite);写法一样
-            game.physics.enable(myBullet, Phaser.Physics.ARCADE);
-            // 开启物理引擎后就有body属性
-            myBullet.body.velocity.y = -200;
-            this.myplane.lastBulletTime = now;
+        if (this.myplane.myStartFire && (now - this.myplane.lastBulletTime) > 500) {
+            // // 相当于new了一个bullet
+            // var myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
+            // // game.physics.arcade.enable(sprite);写法一样
+            // game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+            // // 开启物理引擎后就有body属性
+            // myBullet.body.velocity.y = -200;
+            // this.myplane.lastBulletTime = now;
 
-            // 将子弹加到组里面去
-            this.myBullets.add(myBullet);
+            // // 将子弹加到组里面去
+            // this.myBullets.add(myBullet);
+
+            /**
+             * 对象池的写法
+             */
+            // 参数1:false表示拿不在游戏界面的子弹(If true, find the first existing child; otherwise find the first non-existing child.)
+            var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
+            if (myBullet) {
+                game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+                // // 设置子弹位置(可以将这一步骤放到getFirstExists函数)
+                // myBullet.reset(this.myplane.x + 15, this.myplane.y - 7);
+                // 开启物理引擎后就有body属性
+                myBullet.body.velocity.y = -200;
+                this.myplane.lastBulletTime = now;
+            } else {
+                console.log('不存在子弹了');
+            }
         }
 
         // 我方子弹和敌机碰撞检测
         // collide用这个函数会将物理往上弹
         game.physics.arcade.overlap(this.myBullets, this.enemy, this.collisionHandler, null, this);
+
+        // 打印子弹数
+        console.log(this.myBullets ? this.myBullets.length : 0);
     },
     collisionHandler: function(enemy, bullet) {
         // console.log(arguments);
@@ -165,7 +184,9 @@ game.myStates.play = {
         bullet.kill();
     },
     onStart: function() {
-        // 飞机可拖拽
+        /**
+         * 我方飞机可拖拽
+         */
         // 启动输入系统
         this.myplane.inputEnabled = true;
         // 允许拖拽, 参数1默认为false, 为true表示拖拽的时候鼠标位于精灵中心
@@ -176,11 +197,20 @@ game.myStates.play = {
         this.myplane.lastBulletTime = 0;
 
         /**
-         * 创建一个子弹的组
+         * 我方飞机的子弹组
          */
+        // 创建一个子弹的组
         this.myBullets = game.add.group();
         // 开启物理引擎
         this.myBullets.enableBody = true;
+        // // 测试添加很多子弹
+        // this.myBullets.createMultiple(50000, 'mybullet');
+        // 创建一个子弹的对象池
+        this.myBullets.createMultiple(5, 'mybullet');
+        // 检测边界碰撞
+        this.myBullets.setAll('checkWorldBounds', true);
+        // 飞出边界kill掉变为non-existing child.
+        this.myBullets.setAll('outOfBoundsKill', true);
 
         // 显示分数
         var style = { font: "16px Arial", fill: "#ff0000" };
