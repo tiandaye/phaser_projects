@@ -4,7 +4,7 @@ var upKey;
 
 game.myStates = {};
 
-// 进度条场景
+// 进度条场景, 一般是对游戏进行一些设置
 game.myStates.boot = {
     preload: function() {
         game.load.image('loading', 'assets/preloader.gif');
@@ -19,7 +19,8 @@ game.myStates.boot = {
         game.state.start('load');
     }
 };
-// 加载场景
+
+// 加载场景, 一般是用来加载资源
 game.myStates.load = {
     preload: function() {
         // 进度条(加载资源的策略)
@@ -63,7 +64,8 @@ game.myStates.load = {
         game.state.start('play');
     }
 }
-// 开始场景
+
+// 开始场景, 游戏开始界面
 game.myStates.start = {
     create: function() {
         // 显示背景, 也可以使用image, game.add.image
@@ -97,14 +99,15 @@ game.myStates.start = {
         game.state.start('play');
     }
 }
-// 游戏场景
+
+// 游戏场景, 游戏主界面
 game.myStates.play = {
     create: function() {
-        // 开启物理引擎
+        // 开启ARCADE物理引擎
         game.physics.startSystem(Phaser.Physics.ARCADE);
 
         /**
-         * 瓦片精灵, 会滚动的背景
+         * 瓦片精灵, 实现滚动的背景
          */
         var bg = game.add.tileSprite(0, 0, game.width, game.height, 'background');
         // 滚动效果, 参数1:水平方向滚动, 参数2:垂直方向滚动
@@ -120,35 +123,38 @@ game.myStates.play = {
         this.myplane.animations.play('fly', 10, true);
         // 飞机开启物理引擎, 开启之后才有body属性
         game.physics.arcade.enable(this.myplane);
-        // 不能拖到游戏外面
+        // 不能拖到游戏外面(游戏边界碰撞)
         this.myplane.body.collideWorldBounds = true;
-        // 渐变动画, 从上往下. 参数1:要渐变的属性, 参数2:持续时长, 参数3:效果, 参数4:自动开始
+
+        // 飞机飞到底部的渐变动画, 从上往下. 参数1:要渐变的属性, 参数2:持续时长, 参数3:效果, 参数4:自动开始
         var tween = game.add.tween(this.myplane).to({ y: game.height - 40 }, 1000, Phaser.Easing.Quintic.InOut, true);
         // 到达底部回调
         tween.onComplete.add(this.onStart, this);
 
         /**
-         * 加一个敌机
+         * todo 加一个敌机
          */
         this.enemy = game.add.sprite(100, 10, 'enemy1');
         // 物理属性打开
         game.physics.arcade.enable(this.enemy);
     },
     update: function() {
+        // 或者 game.time.now
         var now = new Date().getTime();
-        if (this.myplane.myStartFire && (now - this.lastBulletTime)> 500) {
+        if (this.myplane.myStartFire && (now - this.myplane.lastBulletTime)> 500) {
+            // 相当于new了一个bullet
             var myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
             // game.physics.arcade.enable(sprite);写法一样
             game.physics.enable(myBullet, Phaser.Physics.ARCADE);
             // 开启物理引擎后就有body属性
             myBullet.body.velocity.y = -200;
-            this.lastBulletTime = now;
+            this.myplane.lastBulletTime = now;
 
             // 将子弹加到组里面去
             this.myBullets.add(myBullet);
         }
 
-        // 碰撞检测
+        // 我方子弹和敌机碰撞检测
         // collide用这个函数会将物理往上弹
         game.physics.arcade.overlap(this.myBullets, this.enemy, this.collisionHandler, null, this);
     },
@@ -164,10 +170,10 @@ game.myStates.play = {
         this.myplane.inputEnabled = true;
         // 允许拖拽, 参数1默认为false, 为true表示拖拽的时候鼠标位于精灵中心
         this.myplane.input.enableDrag();
-        // 标记, 为true再发射子弹
+        // 标记可以发射子弹, 为true再发射子弹
         this.myplane.myStartFire = true;
-        // 最后一次发射子弹的时间
-        this.lastBulletTime = 0;
+        // 最后一次发射子弹的时间(让子弹有间隔)
+        this.myplane.lastBulletTime = 0;
 
         /**
          * 创建一个子弹的组
