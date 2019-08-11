@@ -62,8 +62,7 @@ game.myStates.load = {
         // });
     },
     create: function() {
-        // game.state.start('start');
-        game.state.start('play');
+        game.state.start('start');
     }
 }
 
@@ -94,11 +93,26 @@ game.myStates.start = {
          * 参数9:鼠标上弹
          */
         game.add.button(70, 200, 'startbutton', this.onStartClick, this, 1, 1, 0, 1);
+
+        /**
+         * 播放背景音乐
+         */
+        // 参数1:资源, 参数2:声音大小, 参数3:是否循环
+        this.normalback = game.add.audio('normalback', 0.2, true);
+        try {
+            this.normalback.play();
+        } catch (e) {
+            console.log(e);
+        }
+
     },
     onStartClick: function() {
         // console.log('click');
         // 跳到游戏场景
         game.state.start('play');
+
+        // 停止声音
+        this.normalback.stop();
     }
 }
 
@@ -135,6 +149,29 @@ game.myStates.play = {
         // 到达底部回调
         tween.onComplete.add(this.onStart, this);
 
+        /**
+         * 声音
+         */
+        // 背景音乐
+        this.playback = game.add.audio('playback', 0.2, true);
+        try {
+            this.playback.play();
+        } catch (e) {
+            console.log(e);
+        }
+        // 开火音乐
+        this.pi = game.add.audio('pi', 1, false);
+        // 打中敌人音乐
+        this.firesound = game.add.audio('fashe', 5, false);
+        // 爆炸音乐
+        this.crash1 = game.add.audio('crash1', 10, false);
+        this.crash2 = game.add.audio('crash2', 10, false);
+        this.crash3 = game.add.audio('crash3', 10, false);
+        // 挂了的音乐
+        this.ao = game.add.audio('ao', 10, false);
+        // 得奖了的音乐
+        this.deng = game.add.audio('deng', 10, false);
+
         // /**
         //  * todo 加一个敌机
         //  */
@@ -156,19 +193,63 @@ game.myStates.play = {
 
             // 敌方子弹与我方飞机碰撞
             game.physics.arcade.overlap(this.enemyBullets, this.myplane, this.hitPlane, null, this);
+
+            // 我方飞机与奖牌碰撞
+            game.physics.arcade.overlap(this.awards, this.myplane, this.getAward, null, this);
+
+            // 我方飞机与敌机的碰撞检测
+            game.physics.arcade.overlap(this.enemys, this.myplane, this.crashEnemy, null, this);
         }
 
         // 打印子弹数
         console.log('我机子弹数:' + (this.myBullets ? this.myBullets.length : 0));
     },
-    hitPlane: function(myplan, bullet) {
+    crashEnemy: function(myplane, enemy) {
+        enemy.kill();
+        myplane.kill();
+        // 爆炸效果(可以考虑使用对象池)
+        var explode = game.add.sprite(myplane.x, myplane.y, 'myexplode');
+        var anim = explode.animations.add('explode');
+        anim.play(300, false, false);
+
+        // 把explode destory掉
+        anim.onComplete.addOnce(function() {
+            explode.destroy();
+            // 调到结束界面
+            game.state.start('over');
+
+            // 结束背景音乐播放
+            this.playback.stop();
+        }, this);
+
+        // 挂了的声音
+        try {
+            this.ao.play();
+        } catch (e) {
+            console.log(e);
+        }
+    },
+    getAward: function(myplane, award) {
+        award.kill();
+        if (myplane.life < 3) {
+            myplane.life += 1;
+        }
+
+        // 得奖的声音
+        try {
+            this.deng.play();
+        } catch (e) {
+            console.log(e);
+        }
+    },
+    hitPlane: function(myplane, bullet) {
         bullet.kill();
 
         this.myplane.life -= 1;
         if (this.myplane.life <= 0) {
-            myplan.kill();
+            myplane.kill();
             // 爆炸效果(可以考虑使用对象池)
-            var explode = game.add.sprite(myplan.x, myplan.y, 'myexplode');
+            var explode = game.add.sprite(myplane.x, myplane.y, 'myexplode');
             var anim = explode.animations.add('explode');
             anim.play(30, false, false);
 
@@ -177,7 +258,16 @@ game.myStates.play = {
                 explode.destroy();
                 // 调到结束界面
                 game.state.start('over');
-            });
+
+                // 结束背景音乐播放
+                this.playback.stop();
+            }, this);
+            // 挂了的声音
+            try {
+                this.ao.play();
+            } catch (e) {
+                console.log(e);
+            }
         }
     },
     hitEnemy: function(bullet, enemy) {
@@ -199,8 +289,22 @@ game.myStates.play = {
                 game.score += enemy.score;
                 this.scoreText.text = 'Score:' + game.score;
             }, this);
+
+            // 爆炸的声音
+            try {
+                this["crash" + enemy.index].play();
+            } catch (e) {
+                console.log(e);
+            }
         }
         bullet.kill();
+
+        // 击中的声音
+        try {
+            this.firesound.play();
+        } catch (e) {
+            console.log(e);
+        }
     },
     collisionHandler: function(bullet, enemy) {
         // console.log(arguments);
@@ -251,6 +355,25 @@ game.myStates.play = {
          * 敌方子弹组
          */
         this.enemyBullets = game.add.group();
+
+        /**
+         * 奖牌组
+         */
+        this.awards = game.add.group();
+        // 奖牌每隔30s产生一次
+        game.time.events.loop(Phaser.Timer.SECOND * 3, this.generateAward, this); // 循环
+        // game.time.events.add(Phaser.Timer.SECOND * 3, this.generateAward, this); // 只执行一次
+    },
+    generateAward: function() {
+        var awardSize = game.cache.getImage('award');
+        var x = game.rnd.integerInRange(0, game.width - awardSize.width);
+        var y = -awardSize.height;
+        var award = this.awards.getFirstExists(false, true, x, y, 'award');
+        award.outOfBoundsKill = true;
+        award.checkWorldBounds = true;
+        game.physics.arcade.enable(award);
+        award.body.velocity.y = 600;
+        console.log('奖牌池:' + this.awards.length);
     },
     myPlaneFire: function() {
         // 或者 game.time.now
@@ -285,7 +408,7 @@ game.myStates.play = {
             // }
 
             // 获得子弹封装为函数
-            var getMyPlaneBullet = function () {
+            var getMyPlaneBullet = function() {
                 /**
                  * 对象池的写法, 不估算对象池需要多少子弹(时间间隔随便改都不需要预先设置对象池的大小)
                  */
@@ -332,6 +455,11 @@ game.myStates.play = {
             }
 
             this.myplane.lastBulletTime = now;
+            try {
+                this.pi.play();
+            } catch (e) {
+                console.log(e);
+            }
         }
     },
     generateEnemy: function() {
@@ -445,6 +573,17 @@ game.myStates.over = {
          */
         game.add.button(30, 300, 'replaybutton', this.onRePlayClick, this, 0, 0, 1);
         game.add.button(130, 300, 'sharebutton', this.onShareClick, this, 0, 0, 1);
+
+        /**
+         * 播放背景音乐
+         */
+        // 参数1:资源, 参数2:声音大小, 参数3:是否循环
+        this.normalback = game.add.audio('normalback', 0.2, true);
+        try {
+            this.normalback.play();
+        } catch (e) {
+            console.log(e);
+        }
     },
     onRePlayClick: function() {
         // 重新开始分数设为0
