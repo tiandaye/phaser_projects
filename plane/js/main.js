@@ -2,7 +2,7 @@ var game = new Phaser.Game(240, 400, Phaser.CANVAS, 'game');
 
 var upKey;
 
-var score = 0;
+game.score = 0;
 
 game.myStates = {};
 
@@ -127,6 +127,8 @@ game.myStates.play = {
         game.physics.arcade.enable(this.myplane);
         // 不能拖到游戏外面(游戏边界碰撞)
         this.myplane.body.collideWorldBounds = true;
+        // 给飞机加上生命值
+        this.myplane.life = 3;
 
         // 飞机飞到底部的渐变动画, 从上往下. 参数1:要渐变的属性, 参数2:持续时长, 参数3:效果, 参数4:自动开始
         var tween = game.add.tween(this.myplane).to({ y: game.height - 40 }, 1000, Phaser.Easing.Quintic.InOut, true);
@@ -156,24 +158,27 @@ game.myStates.play = {
             game.physics.arcade.overlap(this.enemyBullets, this.myplane, this.hitPlane, null, this);
         }
 
-        // // 打印子弹数
-        // console.log(this.myBullets ? this.myBullets.length : 0);
+        // 打印子弹数
+        console.log('我机子弹数:' + (this.myBullets ? this.myBullets.length : 0));
     },
     hitPlane: function(myplan, bullet) {
-        myplan.kill();
         bullet.kill();
 
-        // 爆炸效果(可以考虑使用对象池)
-        var explode = game.add.sprite(myplan.x, myplan.y, 'myexplode');
-        var anim = explode.animations.add('explode');
-        anim.play(30, false, false);
+        this.myplane.life -= 1;
+        if (this.myplane.life <= 0) {
+            myplan.kill();
+            // 爆炸效果(可以考虑使用对象池)
+            var explode = game.add.sprite(myplan.x, myplan.y, 'myexplode');
+            var anim = explode.animations.add('explode');
+            anim.play(30, false, false);
 
-        // 把explode destory掉
-        anim.onComplete.addOnce(function() {
-            explode.destroy();
-            // 调到结束界面
-            game.state.start('over');
-        });
+            // 把explode destory掉
+            anim.onComplete.addOnce(function() {
+                explode.destroy();
+                // 调到结束界面
+                game.state.start('over');
+            });
+        }
     },
     hitEnemy: function(bullet, enemy) {
         enemy.life -= 1;
@@ -188,8 +193,12 @@ game.myStates.play = {
 
             // 把explode destory掉
             anim.onComplete.addOnce(function() {
+                // debugger;
                 explode.destroy();
-            });
+                // 添加分数
+                game.score += enemy.score;
+                this.scoreText.text = 'Score:' + game.score;
+            }, this);
         }
         bullet.kill();
     },
@@ -230,7 +239,7 @@ game.myStates.play = {
 
         // 显示分数
         var style = { font: "16px Arial", fill: "#ff0000" };
-        var text = game.add.text(0, 0, "Score: 0", style);
+        this.scoreText = game.add.text(0, 0, "Score: 0", style);
 
         /**
          * 敌方飞机组
@@ -275,30 +284,53 @@ game.myStates.play = {
             //     console.log('不存在子弹了');
             // }
 
-            /**
-             * 对象池的写法, 不估算对象池需要多少子弹(时间间隔随便改都不需要预先设置对象池的大小)
-             */
-            // 从group中获取一个对象(参数2为true表示没有则创建)
-            var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
-            // 如果获取到子弹
-            if (myBullet) {
-                // // 设置子弹位置(可以将这一步骤放到getFirstExists函数)
-                // myBullet.reset(this.myplane.x + 15, this.myplane.y - 7);
-            } else {
-                // 如果获取不到子弹则创建一个
-                myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
-                // 检测边界碰撞(让子弹可以回收)
-                myBullet.checkWorldBounds = true;
-                // 飞出边界kill掉变为non-existing child.(让子弹可以回收)
-                myBullet.outOfBoundsKill = true;
+            // 获得子弹封装为函数
+            var getMyPlaneBullet = function () {
+                /**
+                 * 对象池的写法, 不估算对象池需要多少子弹(时间间隔随便改都不需要预先设置对象池的大小)
+                 */
+                // 从group中获取一个对象(参数2为true表示没有则创建)
+                var myBullet = this.myBullets.getFirstExists(false, false, this.myplane.x + 15, this.myplane.y - 7);
+                // 如果获取到子弹
+                if (myBullet) {
+                    // // 设置子弹位置(可以将这一步骤放到getFirstExists函数)
+                    // myBullet.reset(this.myplane.x + 15, this.myplane.y - 7);
+                } else {
+                    // 如果获取不到子弹则创建一个
+                    myBullet = game.add.sprite(this.myplane.x + 15, this.myplane.y - 7, 'mybullet');
+                    // 检测边界碰撞(让子弹可以回收)
+                    myBullet.checkWorldBounds = true;
+                    // 飞出边界kill掉变为non-existing child.(让子弹可以回收)
+                    myBullet.outOfBoundsKill = true;
 
-                // 把子弹加入到子弹组里面
-                this.myBullets.addChild(myBullet);
+                    // 把子弹加入到子弹组里面
+                    this.myBullets.addChild(myBullet);
 
-                // 开启物理引擎(这句话要是放上面, 子弹和敌机碰撞不会kill)
-                game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+                    // 开启物理引擎(这句话要是放上面, 子弹和敌机碰撞不会kill)
+                    game.physics.enable(myBullet, Phaser.Physics.ARCADE);
+                }
+                return myBullet;
             }
+
+            var myBullet = getMyPlaneBullet.call(this);
             myBullet.body.velocity.y = -200;
+            if (this.myplane.life >= 2) {
+                myBullet = getMyPlaneBullet.call(this);
+                myBullet.body.velocity.x = -20;
+                myBullet.body.velocity.y = -200;
+                myBullet = getMyPlaneBullet.call(this);
+                myBullet.body.velocity.x = 20;
+                myBullet.body.velocity.y = -200;
+            }
+            if (this.myplane.life >= 3) {
+                myBullet = getMyPlaneBullet.call(this);
+                myBullet.body.velocity.x = -40;
+                myBullet.body.velocity.y = -200;
+                myBullet = getMyPlaneBullet.call(this);
+                myBullet.body.velocity.x = 40;
+                myBullet.body.velocity.y = -200;
+            }
+
             this.myplane.lastBulletTime = now;
         }
     },
@@ -325,14 +357,17 @@ game.myStates.play = {
                 enemy.bulletV = 40;
                 enemy.bulletTime = 4000;
                 enemy.life = 2;
+                enemy.score = 20;
             } else if (enemyIndex == 2) {
                 enemy.bulletV = 80;
                 enemy.bulletTime = 2000;
                 enemy.life = 3;
+                enemy.score = 30;
             } else {
                 enemy.bulletV = 120;
                 enemy.bulletTime = 1000;
                 enemy.life = 5;
+                enemy.score = 50;
             }
 
             // 锚点(设置按钮的中心点)
@@ -400,7 +435,7 @@ game.myStates.over = {
          * 居中文本
          */
         var style = { font: "bold 32px Arial", fill: "#ff0000", boundsAlignH: "center", boundsAlignV: "middle" };
-        text = game.add.text(0, 0, "Score:" + score, style);
+        text = game.add.text(0, 0, "Score:" + game.score, style);
         text.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
         // x:0 y:100 width:800 height:100
         text.setTextBounds(0, 0, game.width, game.height);
@@ -412,6 +447,8 @@ game.myStates.over = {
         game.add.button(130, 300, 'sharebutton', this.onShareClick, this, 0, 0, 1);
     },
     onRePlayClick: function() {
+        // 重新开始分数设为0
+        game.score = 0;
         game.state.start('play');
     },
     onShareClick: function() {
