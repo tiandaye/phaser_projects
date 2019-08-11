@@ -19,6 +19,9 @@ game.myStates.boot = {
     },
     create: function() {
         game.state.start('load');
+
+        // // 失去焦点继续进行游戏, https://www.phaser-china.com/docs/Phaser.Stage.html#currentRenderOrderID
+        // game.stage.disableVisibilityChange = true;
     }
 };
 
