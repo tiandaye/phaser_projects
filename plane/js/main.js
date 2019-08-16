@@ -30,7 +30,7 @@ game.myStates.load = {
     preload: function() {
         // 进度条(加载资源的策略)
         // var preloadSprite = game.add.sprite(10, game.height / 2, 'loading');
-        // // 设置聚酯用
+        // // 设置居中用
         var preloadSprite = game.add.sprite(game.width / 2 - 220 / 2, game.height / 2 - 19 / 2, 'loading');
         game.load.setPreloadSprite(preloadSprite);
         // 这里加载了三种类型的资源, 分别是:音频, 图片, 序列帧
